@@ -1,0 +1,7 @@
+csv,passes_total,passes_with_receiver,coverage_pct,nodes,edges,nx_path,pt_path
+Atletico Madrid 1-0 Real Madrid-Champions League-2025-04-07.csv,1479,1015,68.63,32,404,data\processed\passes_Atletico_Madrid_1-0_Real_Madrid-Champions_League-2025-04-07.gpickle,data\processed\passes_Atletico_Madrid_1-0_Real_Madrid-Champions_League-2025-04-07.pt
+Villarreal 1-2 Real Madrid-LaLiga-2025-04-07.csv,1158,815,70.38,31,371,data\processed\passes_Villarreal_1-2_Real_Madrid-LaLiga-2025-04-07.gpickle,data\processed\passes_Villarreal_1-2_Real_Madrid-LaLiga-2025-04-07.pt
+Real Madrid 2-1 Rayo Vallecano-2025-04-07.csv,1069,797,74.56,30,336,data\processed\passes_Real_Madrid_2-1_Rayo_Vallecano-2025-04-07.gpickle,data\processed\passes_Real_Madrid_2-1_Rayo_Vallecano-2025-04-07.pt
+Real Madrid 1-2 Valencia-LaLiga-2025-04-05.csv,1036,688,66.41,32,331,data\processed\passes_Real_Madrid_1-2_Valencia-LaLiga-2025-04-05.gpickle,data\processed\passes_Real_Madrid_1-2_Valencia-LaLiga-2025-04-05.pt
+Real Madrid 3-2 Leganes-LaLiga-2025-04-07.csv,925,595,64.32,31,301,data\processed\passes_Real_Madrid_3-2_Leganes-LaLiga-2025-04-07.gpickle,data\processed\passes_Real_Madrid_3-2_Leganes-LaLiga-2025-04-07.pt
+Everton 1-1 Arsenal-Premier League-2025-04-05.csv,714,398,55.74,32,225,data\processed\passes_Everton_1-1_Arsenal-Premier_League-2025-04-05.gpickle,data\processed\passes_Everton_1-1_Arsenal-Premier_League-2025-04-05.pt

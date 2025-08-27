@@ -1,0 +1,25 @@
+name: futgnn
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.1
+  - pandas
+  - numpy
+  - scikit-learn
+  - networkx
+  - matplotlib
+  - plotly
+  - seaborn
+  - mlflow
+  - torchmetrics
+  - jupyterlab
+  - black
+  - isort
+  - pytest
