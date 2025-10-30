@@ -1,0 +1,7 @@
+csv,nodes,edges,coverage_pct,intra_team_pct,dist_mean,dist_median,dist_p95,top_pairs,nx_path
+Atletico Madrid 1-0 Real Madrid-Champions League-2025-04-07.csv,32,319,99.53,100.0,16.57,13.83,34.54,144511->344644 w=15 p=1.00; 80241->125547 w=15 p=0.80; 254582->125547 w=14 p=1.00,data\processed\passes_Atletico_Madrid_1-0_Real_Madrid-Champions_League-2025-04-07.gpickle
+Villarreal 1-2 Real Madrid-LaLiga-2025-04-07.csv,31,283,99.31,100.0,17.11,14.91,33.93,399047->362735 w=12 p=0.92; 494120->335107 w=11 p=1.00; 335107->371027 w=10 p=1.00,data\processed\passes_Villarreal_1-2_Real_Madrid-LaLiga-2025-04-07.gpickle
+Real Madrid 1-2 Valencia-LaLiga-2025-04-05.csv,32,282,99.23,100.0,18.74,15.05,47.25,144511->353423 w=10 p=0.90; 20874->344644 w=9 p=1.00; 456787->322246 w=9 p=0.89,data\processed\passes_Real_Madrid_1-2_Valencia-LaLiga-2025-04-05.gpickle
+Real Madrid 3-2 Leganes-LaLiga-2025-04-07.csv,31,273,99.24,100.0,17.84,14.82,52.12,104010->422957 w=14 p=1.00; 104010->534899 w=12 p=1.00; 448220->319388 w=11 p=0.91,data\processed\passes_Real_Madrid_3-2_Leganes-LaLiga-2025-04-07.gpickle
+Real Madrid 2-1 Rayo Vallecano-2025-04-07.csv,30,269,99.53,100.0,16.74,14.71,36.7,143655->294123 w=17 p=0.88; 422963->372331 w=14 p=1.00; 294123->422963 w=13 p=0.92,data\processed\passes_Real_Madrid_2-1_Rayo_Vallecano-2025-04-07.gpickle
+Everton 1-1 Arsenal-Premier League-2025-04-05.csv,32,252,99.58,100.0,19.34,15.5,50.5,361822->424462 w=13 p=1.00; 424462->276366 w=9 p=0.89; 276366->361822 w=8 p=1.00,data\processed\passes_Everton_1-1_Arsenal-Premier_League-2025-04-05.gpickle

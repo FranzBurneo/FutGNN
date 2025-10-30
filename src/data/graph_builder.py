@@ -46,16 +46,46 @@ def _pass_distance_angle(
     xe: Optional[str],
     ye: Optional[str],
 ) -> Tuple[Optional[float], Optional[float]]:
-    if not all([xs, ys, xe, ye]) or any(k not in r for k in [xs, ys, xe, ye]):
+    """
+    Distancia/ángulo del pase:
+      - Si hay start y end -> calcula (dist, ang).
+      - Si falta end pero hay start -> (0.0, None) para no introducir NaN.
+      - Si falta start o ambos -> (None, None).
+    """
+    # Validar nombres de columnas
+    if not xs or not ys:
         return None, None
-    try:
-        dx = float(r[xe]) - float(r[xs])
-        dy = float(r[ye]) - float(r[ys])
-        dist = math.hypot(dx, dy)
-        ang = math.degrees(math.atan2(dy, dx))  # 0°→derecha, 90°→arriba
-        return dist, ang
-    except Exception:
+
+    # Tomar valores si la columna existe en la fila
+    def _get(col: Optional[str]):
+        if col and col in r:
+            try:
+                v = float(r[col])
+                if pd.isna(v):
+                    return None
+                return v
+            except Exception:
+                return None
+        return None
+
+    xs_v, ys_v = _get(xs), _get(ys)
+    xe_v, ye_v = _get(xe), _get(ye)
+
+    # Sin punto de inicio no podemos calcular nada
+    if xs_v is None or ys_v is None:
         return None, None
+
+    # Si no hay fin, devolvemos distancia 0 y ángulo indefinido
+    if xe_v is None or ye_v is None:
+        return 0.0, None
+
+    # Cálculo normal
+    dx = xe_v - xs_v
+    dy = ye_v - ys_v
+    dist = math.hypot(dx, dy)
+    ang = math.degrees(math.atan2(dy, dx))  # 0°→derecha, 90°→arriba
+    return dist, ang
+
 
 
 # ---------- ColumnMap ----------
@@ -123,11 +153,24 @@ def _infer_receivers_on_events(
 
     # --- ordenar temporalmente para el fallback ---
     ev = events.reset_index(drop=False).rename(columns={"index": "__orig_idx__"})
-    order_cols = []
-    if cm.minute and cm.minute in events.columns:
+
+    order_cols: List[str] = []
+
+    # básicos primero
+    if cm.minute and cm.minute in ev.columns:
         order_cols.append(cm.minute)
-    if cm.second and cm.second in events.columns:
+    if cm.second and cm.second in ev.columns:
         order_cols.append(cm.second)
+
+    # agrega identificadores/tiempo si existen EN ev (no en events)
+    for extra in [cm.event_id, "expandedMinute", "eventIndex", "timestamp", "period", "half", "__orig_idx__"]:
+        if extra and extra in ev.columns:
+            order_cols.append(extra)
+
+    # sanitiza: deja solo columnas válidas y sin duplicados
+    seen = set()
+    order_cols = [c for c in order_cols if (c not in seen and not seen.add(c))]
+
     if order_cols:
         ev = ev.sort_values(order_cols).reset_index(drop=True)
 
@@ -144,12 +187,22 @@ def _infer_receivers_on_events(
         to_direct = pd.Series(dtype="float64")
 
     # --- 2) por relatedEventId (deduplicado) ---
+        # --- 2) por relatedEventId (deduplicado) + MISMO equipo ---
     if cm.related_event and cm.related_event in events.columns and eid_to_pid:
-        tmp = events[[cm.event_id, cm.related_event]].copy()
-        tmp = tmp.dropna(subset=[cm.event_id]) \
-                 .drop_duplicates(subset=[cm.event_id], keep="last")
-        mapped = tmp[cm.related_event].map(eid_to_pid)
-        to_by_related = pd.Series(mapped.values, index=tmp[cm.event_id].values, dtype="float64")
+        # mapas auxiliares
+        eid_to_team = (dict(zip(events[cm.event_id], events[cm.team_id]))
+                       if cm.team_id and cm.team_id in events.columns else {})
+
+        tmp = events[[cm.event_id, cm.related_event] + ([cm.team_id] if cm.team_id in events.columns else [])].copy()
+        tmp = tmp.dropna(subset=[cm.event_id]).drop_duplicates(subset=[cm.event_id], keep="last")
+
+        mapped_pid  = tmp[cm.related_event].map(eid_to_pid)
+        if eid_to_team:
+            mapped_team = tmp[cm.related_event].map(eid_to_team)          # equipo del evento relacionado
+            same_team   = mapped_team.eq(tmp[cm.team_id])                  # ¿coincide con el del pase?
+            mapped_pid  = mapped_pid.where(same_team)                      # invalida si es rival
+
+        to_by_related = pd.Series(mapped_pid.values, index=tmp[cm.event_id].values, dtype="float64")
     else:
         to_by_related = pd.Series(dtype="float64")
 
@@ -157,7 +210,11 @@ def _infer_receivers_on_events(
     to_by_near = pd.Series(dtype="float64")
     needed_cols = [cm.team_id, cm.x_end, cm.y_end, cm.event_type, cm.player_from]
     if all(c and c in events.columns for c in needed_cols):
-        types_ok = {"balltouch", "carry", "pass"}
+        types_ok = {
+        "balltouch","carry","pass",
+        "ballreceipt","ball_recovery","touch",
+        "reception","control","dribble"
+        }
         near_map = {}
 
         for _, r in events.iterrows():
@@ -177,21 +234,43 @@ def _infer_receivers_on_events(
                 continue
 
             window = ev.iloc[pos + 1 : pos + 1 + lookahead_rows]
+
             cand = None
+            first_same_team_pid = None  # fallback débil
+
             for _, rr in window.iterrows():
-                if cm.team_id in rr and rr[cm.team_id] != team:
-                    break
+                # 1) Solo consideramos eventos de tu mismo equipo; los del rival se ignoran, NO cortan la búsqueda
+                if cm.team_id in rr and pd.notna(rr[cm.team_id]) and rr[cm.team_id] != team:
+                    continue  # antes: break
+
+                # 2) Tipo de evento aceptable como “toque/recepción”
                 t = str(rr.get(cm.event_type, "")).strip().lower()
-                if t not in types_ok:
+                if t not in {"balltouch", "carry", "pass", "ballreceipt", "touch", "ball_recovery"}:
                     continue
-                rx, ry = rr.get("x"), rr.get("y")
+
+                # 3) Coordenadas del “toque” posterior (si no hay startX/startY en tu dataset, usa 'x'/'y')
+                sx = cm.x_start or "x"
+                sy = cm.y_start or "y"
+                rx, ry = rr.get(sx), rr.get(sy)
                 if pd.isna(rx) or pd.isna(ry):
                     continue
-                if _euclid(ex, ey, rx, ry) <= near_dist:
+
+                # 4) Si este es el PRIMER evento del mismo equipo en la ventana, guárdalo como fallback
+                if first_same_team_pid is None and cm.player_from in rr and pd.notna(rr[cm.player_from]):
+                    first_same_team_pid = rr.get(cm.player_from)
+
+                # 5) Criterio de cercanía: ¿está el toque cerca del punto de destino del pase?
+                if _euclid(ex, ey, rx, ry) <= near_dist and cm.player_from in rr and pd.notna(rr[cm.player_from]):
                     cand = rr.get(cm.player_from)
                     break
+
+            # Si no hubo “cand” por cercanía, usa el primer evento del mismo equipo como fallback débil
+            if cand is None and first_same_team_pid is not None and not pd.isna(first_same_team_pid):
+                cand = first_same_team_pid
+
             if cand is not None and not pd.isna(cand):
                 near_map[eid] = cand
+
 
         if near_map:
             to_by_near = pd.Series(near_map, dtype="float64")
@@ -324,17 +403,39 @@ def passes_to_digraph(
 
     for mid, part in groups:
         G = nx.DiGraph(match_id=str(mid))
-        # nodos (jugadores que pasan o reciben)
+
+        # ---- NODOS ----
         players = pd.concat([part["from_id"], part["to_id"]]).dropna().unique().tolist()
         for pid in players:
             G.add_node(int(pid))
 
-        # aristas agregadas de pases válidos (con receptor)
+        # ---- VOTOS DE EQUIPO ----
+        # 1) equipo del EMISOR (mayoría por from_id)
+        sender_team = {}
+        if cm.team_id and cm.team_id in part.columns:
+            tmp = part[["from_id", cm.team_id]].dropna()
+            if not tmp.empty:
+                tmp["from_id"] = pd.to_numeric(tmp["from_id"], errors="coerce").astype("Int64")
+                s_map = (tmp.dropna()
+                            .groupby("from_id")[cm.team_id]
+                            .agg(lambda s: s.value_counts().idxmax()))
+                sender_team = {int(k): int(v) for k, v in s_map.to_dict().items()
+                               if pd.notna(k) and pd.notna(v)}
+
+        # 2) votos para el RECEPTOR (hereda el equipo del emisor en cada pase)
+        recv_votes: Dict[int, List[int]] = {}
+
+        # ---- ARISTAS ----
         for _, r in part.iterrows():
             a, b = r.get("from_id"), r.get("to_id")
             if pd.isna(a) or pd.isna(b):
                 continue
             a, b = int(a), int(b)
+
+            # voto de equipo para b según el equipo del pase
+            if cm.team_id and cm.team_id in part.columns and pd.notna(r.get(cm.team_id)):
+                t = int(r.get(cm.team_id))
+                recv_votes.setdefault(b, []).append(t)
 
             w_prev = G[a][b]["weight"] if G.has_edge(a, b) else 0
             succ_prev = G[a][b].get("success_count", 0) if G.has_edge(a, b) else 0
@@ -354,10 +455,35 @@ def passes_to_digraph(
                 dist_sum=dist_sum,
                 minutes=minutes,
             )
+
+        # ---- ATRIBUTO DE NODO: team ----
+        team_map = dict(sender_team)
+        for pid, votes in recv_votes.items():
+            if votes:
+                team_map[pid] = max(set(votes), key=votes.count)  # modo
+
+        if team_map:
+            nx.set_node_attributes(G, name="team", values=team_map)
+
+        # --- Filtrar aristas cruzadas (entre equipos distintos o sin team) ---
+        removed = 0
+        for u, v in list(G.edges()):
+            tu = team_map.get(u, None)
+            tv = team_map.get(v, None)
+            if tu is None or tv is None or tu != tv:
+                G.remove_edge(u, v)
+                removed += 1
+        
+        G.graph["removed_cross_team"] = removed
+        G.graph["edges_after_filter"] = G.number_of_edges()
+        
+        # +++ MÉTRICAS DE COBERTURA DE TEAM EN EL GRAFO +++
+        has_team = [n for n, d in G.nodes(data=True) if "team" in d]
+        G.graph["team_coverage_pct"] = (100.0 * len(has_team) / max(1, G.number_of_nodes()))
+
         graphs[str(mid)] = G
 
     return graphs
-
 
 def nx_to_pyg(G: nx.DiGraph) -> Data:
     """Convierte un DiGraph en un Data de PyG con features simples (in/out degree)."""
