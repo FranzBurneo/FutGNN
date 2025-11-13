@@ -29,3 +29,8 @@ python -m pip install pyg-lib torch-scatter torch-sparse torch-cluster torch-geo
 
 # Kernel de Jupyter
 python -m ipykernel install --user --name futgnn --display-name "Python (futgnn)"
+
+#
+python scripts/train_lp_cli.py --glob "data/raw/*.csv" --epochs 3 --batch 16 --step 1 --neg 5 --lr 0.001 --hidden 64 --layers 2 --out 64 --device cpu --val_ratio 0.33
+
+python scripts/train_lp_cli.py --glob "data/raw/*.csv" --epochs 30 --batch 16 --step 1 --neg 5 --lr 0.001 --hidden 64 --layers 2 --out 64 --device cpu
