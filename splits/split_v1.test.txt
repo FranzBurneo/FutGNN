@@ -1,0 +1,8 @@
+data/raw\eventing-En Directo Aston Villa 2-0 Tottenham - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Manchester City 3-1 Bournemouth - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Brighton 1-1 Newcastle - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Everton 2-0 Southampton - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Everton 2-2 Ipswich - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Ipswich 0-1 Brentford - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Arsenal 1-2 Bournemouth - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Brentford 4-3 Manchester United - Premier League 2024_2025.htm-2025-11-27.csv

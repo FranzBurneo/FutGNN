@@ -1,0 +1,6 @@
+data/raw\eventing-En Directo Tottenham 0-2 Crystal Palace - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Tottenham 1-4 Brighton - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Chelsea 1-0 Manchester United - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Chelsea 3-1 Liverpool - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Leicester 2-0 Ipswich - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Nottingham Forest 0-1 Chelsea - Premier League 2024_2025.htm-2025-11-27.csv

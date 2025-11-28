@@ -1,0 +1,6 @@
+data/raw\eventing-En Directo Wolves 1-1 Brentford - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Brentford 2-3 Fulham - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Manchester United 2-0 Aston Villa - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Arsenal 1-0 Newcastle - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Wolves 0-2 Brighton - Premier League 2024_2025.htm-2025-11-27.csv
+data/raw\eventing-En Directo Crystal Palace 4-2 Wolves - Premier League 2024_2025.htm-2025-11-27.csv

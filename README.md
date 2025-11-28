@@ -34,3 +34,24 @@ python -m ipykernel install --user --name futgnn --display-name "Python (futgnn)
 python scripts/train_lp_cli.py --glob "data/raw/*.csv" --epochs 3 --batch 16 --step 1 --neg 5 --lr 0.001 --hidden 64 --layers 2 --out 64 --device cpu --val_ratio 0.33
 
 python scripts/train_lp_cli.py --glob "data/raw/*.csv" --epochs 30 --batch 16 --step 1 --neg 5 --lr 0.001 --hidden 64 --layers 2 --out 64 --device cpu
+
+#Comandos usados:
+
+python -m scripts.train_lp_cli --split-file "splits/split_v1.json" --epochs 30 --batch 16 --step 1 --neg 5 --lr 0.001 --hidden 64 --layers 2 --out 64 --device cpu
+
+TODO:
+
+Gráfica y estádisticas en base a redes neuronales.
+interpretar como neural networks.
+
+Bibliografía con Scopus.
+
+Redes Sociales?
+
+Cel: 
+
+
+Avanzar en el documento...
+Investigar funcionalidades 
+
+que falten en herramientas actuales que puedan ser potencialmente generadas con esta base
