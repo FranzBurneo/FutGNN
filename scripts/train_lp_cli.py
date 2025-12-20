@@ -17,6 +17,10 @@ from src.data.datasets import SnapshotLPDataset
 from src.models.gnn_lp import GNNSimpleLP
 from src.train.train_lp import eval_hits_at_k, train_one_epoch
 
+# al tope del archivo (fuera de main)
+def collate_samples(batch):
+    # batch: lista de tuplas (pyg, pos, neg, mask, meta)
+    return list(zip(*batch))
 
 def set_seed(seed: int) -> None:
     random.seed(seed)
@@ -63,6 +67,8 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--workers", type=int, default=0, help="num_workers del DataLoader")
     ap.add_argument("--ckpt", type=str, default="checkpoints/best.pt", help="Ruta de checkpoint a guardar")
     ap.add_argument("--runs_file", type=str, default="runs/lp_metrics.csv", help="Ruta del CSV de métricas")
+    ap.add_argument("--conv", type=str, default="gcn", choices=["gcn","sage"],
+                help="Tipo de capa GNN (gcn|sage)")
     return ap.parse_args()
 
 
@@ -92,24 +98,18 @@ def main() -> None:
 
     # Datasets
     ds_tr = SnapshotLPDataset(train_files, step=args.step, negative_k=neg_k)
-    dl_tr = DataLoader(
-        ds_tr,
-        batch_size=args.batch,
-        shuffle=True,
-        num_workers=args.workers,
-        collate_fn=lambda batch: list(zip(*batch)),  # (pyg, pos, neg, mask, meta)
-    )
+    dl_tr = DataLoader(ds_tr, batch_size=args.batch, shuffle=True,
+        num_workers=args.workers, collate_fn=collate_samples,
+        pin_memory=(args.device=='cuda'))
+
+
 
     dl_va: Optional[DataLoader] = None
     if len(val_files) > 0:
         ds_va = SnapshotLPDataset(val_files, step=args.step, negative_k=neg_k)
-        dl_va = DataLoader(
-            ds_va,
-            batch_size=args.batch,
-            shuffle=False,
-            num_workers=args.workers,
-            collate_fn=lambda batch: list(zip(*batch)),
-        )
+        dl_va = DataLoader(ds_va, batch_size=args.batch, shuffle=False,
+            num_workers=args.workers, collate_fn=collate_samples,
+            pin_memory=(args.device=='cuda'))
         n_val_snaps = len(ds_va)
     else:
         n_val_snaps = 0
@@ -121,7 +121,14 @@ def main() -> None:
     print(f"[INFO] Device: {device}")
 
     # Modelo y optimizador
-    model = GNNSimpleLP(in_dim=2, hidden=args.hidden, layers=args.layers, out=args.out).to(device)
+    model = GNNSimpleLP(
+        in_dim=2, hidden=args.hidden, layers=args.layers, out=args.out,
+        dropout=0.1, scorer="bilinear", scorer_mlp_hidden=64,
+        conv_type=args.conv                    # <-- pasa el tipo
+    ).to(device)
+
+    print(f"[INFO] Modelo: {args.conv.upper()} hidden={args.hidden} layers={args.layers} out={args.out} | lr={args.lr}")
+        
     optim = torch.optim.Adam(model.parameters(), lr=args.lr)
     print(f"[INFO] Modelo: GNNSimpleLP(hidden={args.hidden}, layers={args.layers}, out={args.out}) | lr={args.lr}")
 
