@@ -1,0 +1,13 @@
+[EVAL] Split=curve_30_v2.json | CKPT=curve30_sage_v2.pt | conv_type=sage | device=cpu | Hits@5(TEST)=0.544
+[EVAL] Split=curve_70_v2.json | CKPT=curve70_sage_v2.pt | conv_type=sage | device=cpu | Hits@5(TEST)=0.569
+[EVAL] Split=curve_30_v2.json | CKPT=curve30_gcn.pt | conv_type=gcn | device=cpu | Hits@5(TEST)=0.525
+[EVAL] Split=curve_70_v2.json | CKPT=curve70_gcn.pt | conv_type=gcn | device=cpu | Hits@5(TEST)=0.526
+[EVAL] Split=curve_30_v2.json | CKPT=curve30_gat_v2.pt | conv_type=gat | device=cpu | Hits@5(TEST)=0.530
+[EVAL] Split=curve_70_v2.json | CKPT=curve70_gat_v2.pt | conv_type=gat | device=cpu | Hits@5(TEST)=0.539
+[EVAL] Split=curve_50_v2.json | CKPT=curve50_gcn_v2.pt | conv_type=gcn | device=cpu | Hits@5(TEST)=0.515
+[EVAL] Split=curve_50_v2.json | CKPT=curve50_sage_v2.pt | conv_type=sage | device=cpu | Hits@5(TEST)=0.553
+[EVAL] Split=curve_50_v2.json | CKPT=curve50_gat_v2.pt | conv_type=gat | device=cpu | Hits@5(TEST)=0.536
+[EVAL] Split=splits/curve_50_v2.json | BASELINE=indegree | Hits@5(TEST)=0.549
+[EVAL] Split=splits/curve_50_v2.json | BASELINE=uvfreq | Hits@5(TEST)=0.448
+[EVAL] Split=splits/curve_50_v2.json | BASELINE=comm | Hits@5(TEST)=0.427
+[EVAL] Split=splits/curve_50_v2.json | BASELINE=random | Hits@5(TEST)=0.424

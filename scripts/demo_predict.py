@@ -1,6 +1,6 @@
 # scripts/demo_predict.py
 from __future__ import annotations
-import argparse, glob, os
+import argparse, glob, os, warnings
 from pathlib import Path
 import torch
 import networkx as nx
@@ -19,20 +19,18 @@ def load_name_map_from_csv(csv_path: str) -> dict[int, str]:
     """
     Intenta mapear id_real -> nombre a partir del CSV.
     Busca columnas típicas (case-insensitive):
-      id:  ['playerid','relatedplayerid','id_jugador','jugador_id']
-      name:['shortname','playername','player','jugador','name']
+      id:  ['playerid','relatedplayerid','id_jugador','jugador_id','player_id']
+      name:['shortname','playername','player','jugador','name','player_name']
     Devuelve dict; si no hay nombre, usa str(id).
     """
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(csv_path, on_bad_lines="skip", encoding="utf-8", engine="python")
     df = _norm_cols(df)
 
-    # Candidatos de columnas
     id_cols = [c for c in ['playerid','relatedplayerid','id_jugador','jugador_id','player_id'] if c in df.columns]
-    name_cols = [c for c in ['shorname','playername','player','jugador','name','player_name'] if c in df.columns]
+    name_cols = [c for c in ['shortname','playername','player','jugador','name','player_name'] if c in df.columns]
 
-    name_map = {}
+    name_map: dict[int, str] = {}
 
-    # Recolectar (id, nombre) donde tengamos ambas columnas
     if id_cols and name_cols:
         for idc in id_cols:
             for nc in name_cols:
@@ -45,7 +43,7 @@ def load_name_map_from_csv(csv_path: str) -> dict[int, str]:
                             name_map[rid_i] = nm_s
                     except Exception:
                         pass
-    # Si no hubo nombres, al menos aseguremos IDs observados
+
     if not name_map and id_cols:
         ids = pd.concat([df[c] for c in id_cols], ignore_index=True).dropna().unique().tolist()
         for rid in ids:
@@ -118,7 +116,7 @@ def _label_for(n_idx: int, real_id: int, name_map: dict[int,str], mode: str) -> 
         return nm
     if mode == "name+idx":
         return f"{nm}\n({n_idx})"
-    return nm  # por defecto
+    return nm
 
 def draw_snapshot(pyg, u_idx, v_idx_gt, topV, out_png, title="Demo predicción",
                   seed=7, name_map: dict[int,str] | None = None, label_mode: str = "name"):
@@ -139,7 +137,7 @@ def draw_snapshot(pyg, u_idx, v_idx_gt, topV, out_png, title="Demo predicción",
     for n in G.nodes():
         if n == u_idx: node_color.append("#1f77b4")      # pasador (azul)
         elif n == v_idx_gt: node_color.append("#2ca02c") # GT (verde)
-        elif n in top_set: node_color.append("#ff7f0e")  # candid. top-k (naranja)
+        elif n in top_set: node_color.append("#ff7f0e")  # candidatos top-k (naranja)
         else: node_color.append("#cccccc")               # otros (gris)
 
     plt.figure(figsize=(10, 7))
@@ -155,7 +153,6 @@ def draw_snapshot(pyg, u_idx, v_idx_gt, topV, out_png, title="Demo predicción",
     plt.tight_layout(); plt.savefig(out_png, dpi=150); plt.close()
     print(f"[OK] Figura guardada en: {out_png}")
 
-
 def parse_args():
     ap = argparse.ArgumentParser(description="Demo de predicción de receptor (Link Prediction)")
     ap.add_argument("--ckpt", required=True)
@@ -164,23 +161,61 @@ def parse_args():
     ap.add_argument("--step", type=int, default=1)
     ap.add_argument("--idx", type=int, default=None, help="snapshot idx opcional")
     ap.add_argument("--topk", type=int, default=5)
-    ap.add_argument("--device", default=None)
+    ap.add_argument("--device", default=None, help="cpu | cuda (si disponible)")
     ap.add_argument("--out-prefix", default="docs/figs/demo", help="prefijo para PNG/CSV de salida")
     ap.add_argument("--label-mode", choices=["idx","real","name","name+idx"], default="name",
-                help="Texto mostrado en los nodos del grafo")
+                    help="Texto mostrado en los nodos del grafo")
+    ap.add_argument("--conv-type", choices=["gcn","sage", "gat"], default=None,
+                    help="Tipo de convolución (si no se pasa, se intenta leer del checkpoint).")
     return ap.parse_args()
+
+def _safe_load_ckpt(ckpt_path: str, map_location):
+    # usa weights_only=True si tu torch lo soporta; si no, fallback.
+    try:
+        return torch.load(ckpt_path, map_location=map_location, weights_only=True)
+    except TypeError:
+        warnings.warn("weights_only no soportado por esta versión de torch; cargando sin él.")
+        return torch.load(ckpt_path, map_location=map_location)
 
 def main():
     args = parse_args()
-    device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
 
-    ckpt = torch.load(args.ckpt, map_location=device)
-    h = ckpt.get("args", {}).get("hidden", 64)
-    L = ckpt.get("args", {}).get("layers", 2)
-    o = ckpt.get("args", {}).get("out", 64)
-    model = GNNSimpleLP(in_dim=2, hidden=h, layers=L, out=o).to(device)
-    model.load_state_dict(ckpt["model"]); model.eval()
+    # Resolver device con fallback seguro
+    if args.device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    else:
+        if args.device == "cuda" and not torch.cuda.is_available():
+            print("[WARN] CUDA no disponible; usando CPU.")
+            device = "cpu"
+        else:
+            device = args.device
+    map_loc = torch.device(device)
 
+    # Cargar checkpoint de forma segura
+    ckpt = _safe_load_ckpt(args.ckpt, map_location=map_loc)
+    ckpt_args = ckpt.get("args", {}) if isinstance(ckpt, dict) else {}
+
+    # Descubrir conv_type: CLI > ckpt.args.conv/conv_type > 'sage'
+    conv_type = args.conv_type or ckpt_args.get("conv") or ckpt_args.get("conv_type") or "sage"
+
+    # Hiperparámetros desde ckpt (si existen) con defaults seguros
+    in_dim   = ckpt_args.get("in_dim", 2)
+    hidden   = ckpt_args.get("hidden", 64)
+    layers   = ckpt_args.get("layers", 2)
+    out_dim  = ckpt_args.get("out", 64)
+    dropout  = ckpt_args.get("dropout", 0.1)
+    scorer   = ckpt_args.get("scorer", "bilinear")
+
+    # Instanciar el modelo consistente con el checkpoint
+    model = GNNSimpleLP(
+        in_dim=in_dim, hidden=hidden, layers=layers, out=out_dim,
+        dropout=dropout, scorer=scorer, conv_type=conv_type
+    ).to(map_loc)
+
+    model.load_state_dict(ckpt["model"], strict=True)
+    model.eval()
+
+    # Buscar partido por patrón
     files = sorted(glob.glob(args.glob))
     matches = [f for f in files if args.match_like.lower() in os.path.basename(f).lower()]
     assert matches, f"No se encontró partido que contenga: {args.match_like}"

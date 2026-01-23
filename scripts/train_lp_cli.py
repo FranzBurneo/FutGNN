@@ -67,8 +67,8 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--workers", type=int, default=0, help="num_workers del DataLoader")
     ap.add_argument("--ckpt", type=str, default="checkpoints/best.pt", help="Ruta de checkpoint a guardar")
     ap.add_argument("--runs_file", type=str, default="runs/lp_metrics.csv", help="Ruta del CSV de métricas")
-    ap.add_argument("--conv", type=str, default="gcn", choices=["gcn","sage"],
-                help="Tipo de capa GNN (gcn|sage)")
+    ap.add_argument("--conv", type=str, default="gcn", choices=["gcn","sage","gat"],
+                help="Tipo de capa GNN (gcn|sage|gat)")
     return ap.parse_args()
 
 
@@ -166,10 +166,15 @@ def main() -> None:
         # Guardar mejor checkpoint por val
         if dl_va is not None and hits5_va > best_val:
             best_val = hits5_va
-            torch.save(
-                {"model": model.state_dict(), "args": vars(args), "val_hits5": best_val},
-                ckpt_path.as_posix()
-            )
+            torch.save({
+                "model": model.state_dict(),
+                "args": {
+                    "hidden": args.hidden,
+                    "layers": args.layers,
+                    "out": args.out,
+                    "conv_type": args.conv,
+                }
+                }, args.ckpt)
             print(f"[CKPT] Guardado mejor modelo en {ckpt_path} (Hits@5 VAL={best_val:.3f})")
 
 
